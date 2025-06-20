@@ -4,9 +4,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GRID_SIZE, INITIAL_SNAKE_POSITION, INITIAL_DIRECTION, GAME_SPEED_MS, Position, Direction, GameState } from '@/config/game';
 
+// Define a fixed initial position for food to be used for server-side rendering
+// and client's first render pass before useEffect runs. This avoids hydration mismatch.
+// It should ideally not overlap with the initial snake position.
+const DETERMINISTIC_INITIAL_FOOD_POSITION: Position = { 
+  x: Math.floor(GRID_SIZE / 3), 
+  y: Math.floor(GRID_SIZE / 3) 
+};
+
 export function useSnakeGame() {
   const [snake, setSnake] = useState<Position[]>(INITIAL_SNAKE_POSITION);
-  const [food, setFood] = useState<Position>(getRandomPosition());
+  // Initialize food with a deterministic position for SSR and initial client render
+  const [food, setFood] = useState<Position>(DETERMINISTIC_INITIAL_FOOD_POSITION);
   const [direction, setDirection] = useState<Direction>(INITIAL_DIRECTION);
   const [pendingDirection, setPendingDirection] = useState<Direction | null>(null);
   const [score, setScore] = useState<number>(0);
@@ -16,11 +25,18 @@ export function useSnakeGame() {
   const gameLoopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // Load high score from localStorage (client-side only)
     const storedHighScore = localStorage.getItem('retrorakeHighScore');
     if (storedHighScore) {
       setHighScore(parseInt(storedHighScore, 10));
     }
-  }, []);
+
+    // Set the *actual* initial random food position on the client after hydration.
+    // This ensures Math.random() (via getRandomPosition) is called client-side
+    // after the initial render, preventing hydration mismatch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    generateFood(); // We intend to call the generateFood based on initial snake state.
+  }, []); // Empty dependency array ensures this runs once on mount (client-side).
 
   function getRandomPosition(): Position {
     return {
@@ -35,11 +51,11 @@ export function useSnakeGame() {
       newFoodPosition = getRandomPosition();
     } while (snake.some(segment => segment.x === newFoodPosition.x && segment.y === newFoodPosition.y));
     setFood(newFoodPosition);
-  }, [snake]);
+  }, [snake]); // generateFood depends on `snake` to avoid placing food on it.
 
   const resetGame = useCallback(() => {
     setSnake(INITIAL_SNAKE_POSITION);
-    generateFood();
+    generateFood(); // Sets a new random food position
     setDirection(INITIAL_DIRECTION);
     setPendingDirection(null);
     setScore(0);
@@ -59,12 +75,11 @@ export function useSnakeGame() {
 
     let currentDirection = direction;
     if (pendingDirection) {
-        // Prevent 180-degree turns
         if (!(pendingDirection.x === -direction.x && pendingDirection.y !== 0) && 
             !(pendingDirection.y === -direction.y && pendingDirection.x !== 0)) {
              if (pendingDirection.x !== 0 && direction.x === 0 || pendingDirection.y !== 0 && direction.y === 0 ||
                  pendingDirection.x === 0 && direction.y !== 0 || pendingDirection.y === 0 && direction.x !== 0 ||
-                 (pendingDirection.x !== -direction.x || pendingDirection.y !== -direction.y) // Allow perpendicular turns
+                 (pendingDirection.x !== -direction.x || pendingDirection.y !== -direction.y)
                 ) {
                  currentDirection = pendingDirection;
                  setDirection(pendingDirection);
@@ -73,14 +88,12 @@ export function useSnakeGame() {
         setPendingDirection(null);
     }
 
-
     setSnake(prevSnake => {
       const newSnake = [...prevSnake];
       const head = { ...newSnake[0] };
       head.x += currentDirection.x;
       head.y += currentDirection.y;
 
-      // Wall collision
       if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
         setGameState(GameState.GameOver);
         if (score > highScore) {
@@ -90,7 +103,6 @@ export function useSnakeGame() {
         return prevSnake;
       }
 
-      // Self collision
       for (let i = 1; i < newSnake.length; i++) {
         if (newSnake[i].x === head.x && newSnake[i].y === head.y) {
           setGameState(GameState.GameOver);
@@ -102,14 +114,13 @@ export function useSnakeGame() {
         }
       }
 
-      newSnake.unshift(head); // Add new head
+      newSnake.unshift(head);
 
-      // Food consumption
       if (head.x === food.x && head.y === food.y) {
         setScore(s => s + 1);
         generateFood();
       } else {
-        newSnake.pop(); // Remove tail if no food eaten
+        newSnake.pop();
       }
       return newSnake;
     });
@@ -128,7 +139,7 @@ export function useSnakeGame() {
         clearTimeout(gameLoopTimeoutRef.current);
       }
     };
-  }, [gameState, gameTick, snake]); // Add snake to dependency to reschedule tick after snake update
+  }, [gameState, gameTick, snake]);
 
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
@@ -140,7 +151,6 @@ export function useSnakeGame() {
     if (gameState === GameState.NotStarted && (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'Enter')) {
         startGame();
     }
-
 
     let newDirection: Direction | null = null;
     switch (event.key) {
@@ -161,11 +171,9 @@ export function useSnakeGame() {
     }
     
     if (newDirection) {
-        // if snake length is 1, allow 180 degree turn
         if (snake.length === 1) {
             setPendingDirection(newDirection);
         } else {
-             // Standard check: Don't allow immediate 180-degree turn
             if (newDirection.x !== -direction.x || newDirection.y !== -direction.y) {
                 setPendingDirection(newDirection);
             }

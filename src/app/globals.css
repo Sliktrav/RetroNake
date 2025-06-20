@@ -16,8 +16,8 @@
     --secondary-foreground: 205 65% 55%; /* Brighter Mid Blue for text */
     --muted: 200 70% 85%; /* Muted Light Blue */
     --muted-foreground: 220 25% 35%; /* Darker Muted Blue text */
-    --accent: 120 100% 50%; /* Neon Green */
-    --accent-foreground: 120 100% 10%; /* Very Dark Green (for text on Neon Green) */
+    --accent: 40 100% 50%; /* Golden Yellow */
+    --accent-foreground: 40 100% 10%; /* Very Dark Gold/Brown (for text on Golden) */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 200 70% 80%; /* Light Blue Border */
@@ -44,8 +44,8 @@
     --secondary-foreground: 200 40% 80%; /* Light Cyan-Blue/Gray for text */
     --muted: 220 20% 20%; /* Dark Muted Blue */
     --muted-foreground: 200 70% 75%; /* Lighter Muted Blue text */
-    --accent: 120 100% 50%; /* Neon Green */
-    --accent-foreground: 120 100% 10%; /* Very Dark Green (for text on Neon Green) */
+    --accent: 40 90% 55%; /* Slightly desaturated Golden Yellow for dark mode */
+    --accent-foreground: 40 100% 10%; /* Very Dark Gold/Brown (for text on Golden) */
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 220 20% 25%; /* Dark Blue Border */
